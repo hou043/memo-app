@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Supabase Memo</title>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 60px auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    h2 {
+      font-size: 16px;
+      margin-top: 24px;
+      margin-bottom: 8px;
+      color: #555;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
+    hr {
+      margin: 24px 0;
+      border: none;
+      border-top: 1px solid #eee;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: #f9fafb;
+      border-radius: 8px;
+    }
+
+    li button {
+      background: #ef4444;
+    }
+
+    li button:hover {
+      background: #dc2626;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Supabase Memo</h1>
+
+    <h2>ログイン / 登録</h2>
+    <input id="email" placeholder="email">
+    <input id="password" type="password" placeholder="password">
+    <button onclick="signUp()">Sign Up</button>
+    <button onclick="signIn()">Sign In</button>
+
+    <hr>
+
+    <h2>メモ</h2>
+    <input id="memo" placeholder="メモを書く">
+    <button onclick="addMemo()">追加</button>
+
+    <ul id="memo-list"></ul>
+
+  </div>
+
+  <!-- Supabase JS -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+  <script>
+    const SUPABASE_URL = "https://hwonolsvowzjblsldnnk.supabase.co"
+    const SUPABASE_ANON_KEY = "sb_publishable_6HjJ1IDb_ZkcUwezVK7BnQ_sv37uauT"
+
+    const supabaseClient = supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    )
+
+    async function signUp() {
+      const email = document.getElementById("email").value
+      const password = document.getElementById("password").value
+
+      const { error } = await supabaseClient.auth.signUp({
+        email,
+        password
+      })
+
+      if (error) alert(error.message)
+      else alert("登録完了（確認メールをチェック）")
+    }
+
+    async function signIn() {
+      const email = document.getElementById("email").value
+      const password = document.getElementById("password").value
+
+      const { error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (error) {
+        alert(error.message)
+      } else {
+        loadMemos()
+      }
+    }
+
+    async function loadMemos() {
+      const { data, error } = await supabaseClient
+        .from("memos")
+        .select("*")
+        .order("created_at")
+  
+      if (error) {
+        alert(error.message)
+        return
+      }
+ 
+      const ul = document.getElementById("memo-list")
+      ul.innerHTML = ""
+
+      data.forEach(m => {
+        const li = document.createElement("li")
+
+      // メモ本文
+        const span = document.createElement("span")
+        span.textContent = m.content
+
+      // 削除ボタン
+        const delBtn = document.createElement("button")
+        delBtn.textContent = "削除"
+        delBtn.style.marginLeft = "10px"
+        delBtn.onclick = () => deleteMemo(m.id)
+
+        li.appendChild(span)
+        li.appendChild(delBtn)
+        ul.appendChild(li)
+      })
+    }
+    async function addMemo() {
+      const content = document.getElementById("memo").value
+      const user = (await supabaseClient.auth.getUser()).data.user
+
+      if (!user) {
+        alert("ログインしてください")
+        return
+      }
+
+      const { error } = await supabaseClient
+        .from("memos")
+        .insert({
+          content,
+          user_id: user.id
+        })
+
+      if (error) alert(error.message)
+      else loadMemos()
+    }
+    async function deleteMemo(id) {
+      const { error } = await supabaseClient
+        .from("memos")
+        .delete()
+        .eq("id", id)
+
+      if (error) {
+        alert(error.message)
+      } else {
+        loadMemos()
+      }
+    }
+  </script>
+</body>
+</html>
